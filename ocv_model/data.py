@@ -4,7 +4,7 @@ temperatures. Change the tc variable to view plots from the other test data.
 For example, change the tc string to N05 to create plots for the CSV files
 named A123_OCV_N05_S1, A123_OCV_N05_S2, A123_OCV_N05_S3, and A123_OCV_N05_S4.
 """
-
+# %% 
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -13,7 +13,7 @@ import pandas as pd
 
 # string that represents temperature of battery test to determine which csv
 # files to read, values can be N05, N15, N25, P05, P15, P25, P35, or P45
-tc = 'N05'
+tc = 'P25'
 
 df1 = pd.read_csv('../ocv_data/A123_OCV_' + tc + '_S1.csv')
 test_time1 = df1['Test_Time(s)']
@@ -55,6 +55,7 @@ for t in temps:
 plt.ion()
 plt.close('all')
 
+# %% 
 # Figure 1
 plt.figure(1)
 plt.plot(times[0], volts[0], label='-5$^{\circ}$C')
@@ -70,6 +71,8 @@ plt.xlabel('Time (s)')
 plt.ylabel('Voltage (V)')
 plt.title('A123 battery cell')
 
+plt.show()
+# %% 
 # Figure 2
 fig, ax1 = plt.subplots()
 plt.title('A123_OCV_' + tc + '_S1')
@@ -84,6 +87,7 @@ ax2.plot(test_time1, voltage1, color='r', lw=2, label='voltage')
 ax2.set_ylabel('Voltage (V)', color='r')
 ax2.tick_params('y', colors='r')
 
+# %% 
 # Figure 3
 fig, ax1 = plt.subplots()
 plt.title('A123_OCV_' + tc + '_S2')
@@ -98,6 +102,7 @@ ax2.plot(test_time2, voltage2, color='r', lw=2, label='voltage')
 ax2.set_ylabel('Voltage (V)', color='r')
 ax2.tick_params('y', colors='r')
 
+# %% 
 # Figure 4
 fig, ax1 = plt.subplots()
 plt.title('A123_OCV_' + tc + '_S3')
@@ -112,6 +117,7 @@ ax2.plot(test_time3, voltage3, color='r', lw=2, label='voltage')
 ax2.set_ylabel('Voltage (V)', color='r')
 ax2.tick_params('y', colors='r')
 
+# %% 
 # Figure 5
 fig, ax1 = plt.subplots()
 plt.title('A123_OCV_' + tc + '_S4')
@@ -125,4 +131,3 @@ ax2 = ax1.twinx()
 ax2.plot(test_time4, voltage4, color='r', lw=2, label='voltage')
 ax2.set_ylabel('Voltage (V)', color='r')
 ax2.tick_params('y', colors='r')
-

@@ -12,10 +12,10 @@ from pathlib import Path
 
 # parameters
 cellID = 'A123'     # cell identifier
-numpoles = 3        # number of resistor-capacitor pairs in final model
+numpoles = 1        # number of resistor-capacitor pairs in final model
 temps = [-25, -15, -5, 5, 15, 25, 35, 45]   # temperatures
 mags = [10, 10, 30, 45, 45, 50, 50, 50]     # A123
-doHyst = 1          # 1 "find M, M0 and G params" or 0 "make hys params 0" 
+doHyst = 1          # 1 "find M, M0 and G params" or 0 "make hys params 0"
 
 # read model OCV file, previously computed by runProcessOCV
 modelocv = ModelOcv.load(Path(f'./modelocv.json'))
@@ -45,12 +45,13 @@ for idx, temp in enumerate(temps):
 
 modeldyn = processDynamic(data, modelocv, numpoles, doHyst)
 
-# convert ocv and dyn results model object to dict, then save in JSON to disk 
-modeldyn = {k:v.tolist() if isinstance(v, np.ndarray) else v for k,v in modeldyn.__dict__.items()}
+# convert ocv and dyn results model object to dict, then save in JSON to disk
+modeldyn = {k: v.tolist() if isinstance(v, np.ndarray)
+            else v for k, v in modeldyn.__dict__.items()}
 if True:
     if doHyst:
         with open('modeldyn.json', 'w') as json_file:
             json.dump(modeldyn, json_file, indent=4)
     else:
         with open('modeldyn-no-hys.json', 'w') as json_file:
-            json.dump(modeldyn,json_file, indent=4)
+            json.dump(modeldyn, json_file, indent=4)

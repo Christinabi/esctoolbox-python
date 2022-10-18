@@ -15,6 +15,7 @@ from models import ModelDyn
 # Functions
 # ------------------------------------------------------------------------------
 
+
 def OCVfromSOCtemp(soc, temp, model):
     """ OCV function """
     SOC = model.SOC          # force to be column vector
@@ -23,29 +24,35 @@ def OCVfromSOCtemp(soc, temp, model):
 
     # if soc is scalar then make it a vector
     soccol = np.asarray(soc)
+    soccol = soccol.flatten()
     if soccol.ndim == 0:
         soccol = soccol[None]
 
     tempcol = temp * np.ones(np.size(soccol))
 
-    diffSOC = SOC[1] - SOC[0]           # spacing between SOC points - assume uniform
+    # spacing between SOC points - assume uniform
+    diffSOC = SOC[1] - SOC[0]
     ocv = np.zeros(np.size(soccol))     # initialize output to zero
-    I1, = np.where(soccol <= SOC[0])    # indices of socs below model-stored data
+    # indices of socs below model-stored data
+    I1, = np.where(soccol <= SOC[0])
     I2, = np.where(soccol >= SOC[-1])   # and of socs above model-stored data
     I3, = np.where((soccol > SOC[0]) & (soccol < SOC[-1]))   # the rest of them
-    I6 = np.isnan(soccol)               # if input is "not a number" for any locations
+    # if input is "not a number" for any locations
+    I6 = np.isnan(soccol)
 
     # for voltages less than lowest stored soc datapoint, extrapolate off
     # low end of table
     if I1.any():
         dv = (OCV0[1] + tempcol*OCVrel[1]) - (OCV0[0] + tempcol*OCVrel[0])
-        ocv[I1] = (soccol[I1] - SOC[0])*dv[I1]/diffSOC + OCV0[0] + tempcol[I1]*OCVrel[0]
+        ocv[I1] = (soccol[I1] - SOC[0])*dv[I1]/diffSOC + \
+            OCV0[0] + tempcol[I1]*OCVrel[0]
 
     # for voltages greater than highest stored soc datapoint, extrapolate off
     # high end of table
     if I2.any():
         dv = (OCV0[-1] + tempcol*OCVrel[-1]) - (OCV0[-2] + tempcol*OCVrel[-2])
-        ocv[I2] = (soccol[I2] - SOC[-1])*dv[I2]/diffSOC + OCV0[-1] + tempcol[I2]*OCVrel[-1]
+        ocv[I2] = (soccol[I2] - SOC[-1])*dv[I2]/diffSOC + \
+            OCV0[-1] + tempcol[I2]*OCVrel[-1]
 
     # for normal soc range, manually interpolate (10x faster than "interp1")
     I4 = (soccol[I3] - SOC[0])/diffSOC  # using linear interpolation
@@ -56,6 +63,8 @@ def OCVfromSOCtemp(soc, temp, model):
     ocv[I3] = OCV0[I5]*omI45 + OCV0[I5+1]*I45
     ocv[I3] = ocv[I3] + tempcol[I3]*(OCVrel[I5]*omI45 + OCVrel[I5+1]*I45)
     ocv[I6] = 0     # replace NaN SOCs with zero voltage
+    ocv = ocv.reshape(np.shape(soc))
+    # print(f"ocv is {ocv}")
     return ocv
 
 
@@ -76,7 +85,7 @@ def SISOsubid(y, u, n):
     toolbox on MATLAB CENTRAL file exchange, originally by Peter Van Overschee,
     Dec. 1995
     """
-    
+
     ny = len(y)
     i = 2*n
     twoi = 4*n
@@ -114,7 +123,8 @@ def SISOsubid(y, u, n):
     RpRuRu = RpRu.dot(Ru)
     tm3 = Rp[:, :twoi] - RpRuRu
     tm4 = Rp[:, twoi:4*i]
-    Rpp = np.concatenate((tm3, tm4), axis=1)    # perpendicular past inputs and outputs
+    # perpendicular past inputs and outputs
+    Rpp = np.concatenate((tm3, tm4), axis=1)
 
     # The oblique projection is computed as (6.1) in VODM, page 166.
     # obl/Ufp = Yf/Ufp * pinv(Wp/Ufp) * (Wp/Ufp)
@@ -143,7 +153,8 @@ def SISOsubid(y, u, n):
     WOW = np.concatenate((tm5, tm6), axis=1)
 
     U, S, _ = np.linalg.svd(WOW, full_matrices=False)
-    ss = S       # In np.linalg.svd S is already the diagonal, generally ss = diag(S)
+    # In np.linalg.svd S is already the diagonal, generally ss = diag(S)
+    ss = S
 
     # STEP 3: Partitioning U into U1 and U2 (the latter is not used)
     # ------------------------------------------------------------------
@@ -154,20 +165,22 @@ def SISOsubid(y, u, n):
     # ------------------------------------------------------------------
 
     gam = U1 @ np.diag(np.sqrt(ss[:n]))
-    gamm = gam[0:(i-1),:]
+    gamm = gam[0:(i-1), :]
     gam_inv = np.linalg.pinv(gam)               # pseudo inverse of gam
     gamm_inv = np.linalg.pinv(gamm)             # pseudo inverse of gamm
 
     # STEP 5: Determine A matrix (also C, which is not used)
     # ------------------------------------------------------------------
 
-    tm7 = np.concatenate((gam_inv @ R[3*i:4*i, 0:3*i], np.zeros((n,1))), axis=1)
+    tm7 = np.concatenate(
+        (gam_inv @ R[3*i:4*i, 0:3*i], np.zeros((n, 1))), axis=1)
     tm8 = R[i:twoi, 0:3*i+1]
     Rhs = np.vstack((tm7, tm8))
     tm9 = gamm_inv @ R[3*i+1:4*i, 0:3*i+1]
     tm10 = R[3*i:3*i+1, 0:3*i+1]
     Lhs = np.vstack((tm9, tm10))
-    sol = np.linalg.lstsq(Rhs.T, Lhs.T, rcond=None)[0].T    # solve least squares for [A; C]
+    sol = np.linalg.lstsq(Rhs.T, Lhs.T, rcond=None)[
+        0].T    # solve least squares for [A; C]
     A = sol[0:n, 0:n]                           # extract A
 
     return A
@@ -182,6 +195,7 @@ def minfn(data, model, theTemp, doHyst):
 
     alltemps = [d.temp for d in data]
     ind, = np.where(np.array(alltemps) == theTemp)[0]
+    # print(f"index is {ind}")
 
     G = abs(model.GParam[ind])
 
@@ -218,16 +232,19 @@ def minfn(data, model, theTemp, doHyst):
     # Modify results to ensure real, preferably distinct, between 0 and 1
 
     eigA = np.linalg.eigvals(A)
-    eigAr = eigA + 0.001 * np.random.normal(loc=0.0, scale=1.0, size=eigA.shape)
-    eigA[eigA != np.conj(eigA)] = abs(eigAr[eigA != np.conj(eigA)]) # Make sure real
-    eigA = np.real(eigA)                                            # Make sure real
-    eigA[eigA<0] = abs(eigA[eigA<0])    # Make sure in range 
-    eigA[eigA>1] = 1 / eigA[eigA>1]
+    eigAr = eigA + 0.001 * \
+        np.random.normal(loc=0.0, scale=1.0, size=eigA.shape)
+    eigA[eigA != np.conj(eigA)] = abs(
+        eigAr[eigA != np.conj(eigA)])  # Make sure real
+    # Make sure real
+    eigA = np.real(eigA)
+    eigA[eigA < 0] = abs(eigA[eigA < 0])    # Make sure in range
+    eigA[eigA > 1] = 1 / eigA[eigA > 1]
     RCfact = np.sort(eigA)
     RCfact = RCfact[-numpoles:]
     RC = -1 / np.log(RCfact)
 
-    # Compute RC time constants as Plett's Matlab ESCtoolbox 
+    # Compute RC time constants as Plett's Matlab ESCtoolbox
     # nup = numpoles
     # while 1:
     #     A = SISOsubid(y, u, nup)
@@ -235,7 +252,7 @@ def minfn(data, model, theTemp, doHyst):
     #     # Modify results to ensure real, preferably distinct, between 0 and 1
     #     eigA = np.linalg.eigvals(A)
     #     eigA = np.real(eigA[eigA == np.conj(eigA)])   # Make sure real
-    #     eigA = eigA[(eigA>0) & (eigA<1)]    # Make sure in range 
+    #     eigA = eigA[(eigA>0) & (eigA<1)]    # Make sure in range
     #     okpoles = len(eigA)
     #     nup = nup + 1
     #     if okpoles >= numpoles:
@@ -247,7 +264,8 @@ def minfn(data, model, theTemp, doHyst):
     # RC = -1 / np.log(RCfact)
 
     # Simulate the R-C filters to find R-C currents
-    stsp = dlti(np.diag(RCfact), np.vstack(1-RCfact), np.eye(numpoles), np.zeros((numpoles, 1))) 
+    stsp = dlti(np.diag(RCfact), np.vstack(1-RCfact),
+                np.eye(numpoles), np.zeros((numpoles, 1)))
     [tout, vrcRaw, xout] = dlsim(stsp, etaik)
 
     # Third modeling step: Hysteresis parameters
@@ -260,7 +278,7 @@ def minfn(data, model, theTemp, doHyst):
         Rfact = W[0][3:].T
     else:
         H = np.column_stack((-etaik, -vrcRaw))
-        W = np.linalg.lstsq(H,verr, rcond=None)[0]
+        W = np.linalg.lstsq(H, verr, rcond=None)[0]
         M = 0
         M0 = 0
         R0 = W[0]
@@ -285,7 +303,7 @@ def minfn(data, model, theTemp, doHyst):
     plt.ylabel('Voltage (V)')
     plt.title(f'Voltage and estimates at T = {data[ind].temp} C')
     plt.legend(loc='best', numpoints=1)
-    #plt.show()
+    # plt.show()
 
     # plot modeling errors
     plt.figure(2)
@@ -293,11 +311,11 @@ def minfn(data, model, theTemp, doHyst):
     plt.xlabel('Time (min)')
     plt.ylabel('Error (V)')
     plt.title(f'Modeling error at T = {data[ind].temp} C')
-    #plt.show()
+    # plt.show()
 
     # Compute RMS error only on data roughly in 5% to 95% SOC
-    v1 = OCVfromSOCtemp(0.95, data[ind].temp, model)[0]
-    v2 = OCVfromSOCtemp(0.05, data[ind].temp, model)[0]
+    v1 = OCVfromSOCtemp(0.95, data[ind].temp, model)
+    v2 = OCVfromSOCtemp(0.05, data[ind].temp, model)
     N1 = np.where(vk < v1)[0][0]
     N2 = np.where(vk < v2)[0][0]
 
@@ -369,8 +387,8 @@ def processDynamic(data, modelocv, numpoles, doHyst):
 
     # used by minimize_scalar later on
     options = {
-        'xatol': 1e-08, 
-        'maxiter': 1e5, 
+        'xatol': 1e-08,
+        'maxiter': 1e5,
         'disp': 0
     }
 
@@ -386,8 +404,10 @@ def processDynamic(data, modelocv, numpoles, doHyst):
 
     k = ind25
 
-    totDisAh = data[k].s1.disAh[-1] + data[k].s2.disAh[-1] + data[k].s3.disAh[-1]
-    totChgAh = data[k].s1.chgAh[-1] + data[k].s2.chgAh[-1] + data[k].s3.chgAh[-1]
+    totDisAh = data[k].s1.disAh[-1] + \
+        data[k].s2.disAh[-1] + data[k].s3.disAh[-1]
+    totChgAh = data[k].s1.chgAh[-1] + \
+        data[k].s2.chgAh[-1] + data[k].s3.chgAh[-1]
     eta25 = totDisAh/totChgAh
     data[k].eta = eta25
     alletas[k] = eta25
@@ -395,7 +415,8 @@ def processDynamic(data, modelocv, numpoles, doHyst):
     data[k].s2.chgAh = data[k].s2.chgAh * eta25
     data[k].s3.chgAh = data[k].s3.chgAh * eta25
 
-    Q25 = data[k].s1.disAh[-1] + data[k].s2.disAh[-1] - data[k].s1.chgAh[-1] - data[k].s2.chgAh[-1]
+    Q25 = data[k].s1.disAh[-1] + data[k].s2.disAh[-1] - \
+        data[k].s1.chgAh[-1] - data[k].s2.chgAh[-1]
     data[k].Q = Q25
     allQs[k] = Q25
 
@@ -404,13 +425,15 @@ def processDynamic(data, modelocv, numpoles, doHyst):
     for k in not25:
         data[k].s2.chgAh = data[k].s2.chgAh*eta25
         data[k].s3.chgAh = data[k].s3.chgAh*eta25
-        eta = (data[k].s1.disAh[-1] + data[k].s2.disAh[-1] + data[k].s3.disAh[-1] - data[k].s2.chgAh[-1] - data[k].s3.chgAh[-1])/data[k].s1.chgAh[-1]
+        eta = (data[k].s1.disAh[-1] + data[k].s2.disAh[-1] + data[k].s3.disAh[-1] -
+               data[k].s2.chgAh[-1] - data[k].s3.chgAh[-1])/data[k].s1.chgAh[-1]
 
         data[k].s1.chgAh = eta*data[k].s1.chgAh
         data[k].eta = eta
         alletas[k] = eta
 
-        Q = data[k].s1.disAh[-1] + data[k].s2.disAh[-1] - data[k].s1.chgAh[-1] - data[k].s2.chgAh[-1]
+        Q = data[k].s1.disAh[-1] + data[k].s2.disAh[-1] - \
+            data[k].s1.chgAh[-1] - data[k].s2.chgAh[-1]
         data[k].Q = Q
         allQs[k] = Q
 
@@ -432,11 +455,14 @@ def processDynamic(data, modelocv, numpoles, doHyst):
     # Step 3: Now, optimize!
     # ------------------------------------------------------------------
 
-    modeldyn.GParam = np.zeros(len(modeldyn.temps))   # gamma hysteresis parameter
+    # gamma hysteresis parameter
+    modeldyn.GParam = np.zeros(len(modeldyn.temps))
     modeldyn.M0Param = np.zeros(len(modeldyn.temps))  # M0 hysteresis parameter
     modeldyn.MParam = np.zeros(len(modeldyn.temps))   # M hysteresis parameter
-    modeldyn.R0Param = np.zeros(len(modeldyn.temps))  # R0 ohmic resistance parameter
-    modeldyn.RCParam = np.zeros((len(modeldyn.temps), numpoles))  # time constant
+    # R0 ohmic resistance parameter
+    modeldyn.R0Param = np.zeros(len(modeldyn.temps))
+    modeldyn.RCParam = np.zeros(
+        (len(modeldyn.temps), numpoles))  # time constant
     modeldyn.RParam = np.zeros((len(modeldyn.temps), numpoles))   # Rk
 
     modeldyn.SOC = modelocv.SOC        # copy SOC values from OCV model
@@ -448,11 +474,12 @@ def processDynamic(data, modelocv, numpoles, doHyst):
         print('Processing temperature', temp, 'C')
 
         if doHyst:
-            g = abs(minimize_scalar(optfn, bounds=(1, 250), args=(data, modeldyn, temp, doHyst), method='bounded', options=options).x)
+            g = abs(minimize_scalar(optfn, bounds=(1, 250), args=(
+                data, modeldyn, temp, doHyst), method='bounded', options=options).x)
             print('g =', g)
 
         else:
             modeldyn.GParam[theTemp] = 0
-            theGParam = 0 
+            theGParam = 0
             optfn(theGParam, data, modeldyn, temp, doHyst)
-    return modeldyn   
+    return modeldyn

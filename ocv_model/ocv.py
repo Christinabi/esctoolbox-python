@@ -20,7 +20,8 @@ temps = np.array([-25, -15, -5, 5, 15, 25, 35, 45])
 minV = 2.00     # minimum cell voltage, used for plotting results
 maxV = 3.75     # maximum cell voltage, used for plotting results
 
-SOC = np.arange(0, 1+0.005, 0.005).round(decimals=3)  # range for state of charge
+# range for state of charge
+SOC = np.arange(0, 1+0.005, 0.005).round(decimals=3)
 
 # initialize variables to store calculations
 eta = np.zeros(len(temps))  # coulombic efficiency
@@ -52,10 +53,12 @@ k, = np.where(temps == 25)[0]   # index where temperature is 25 degC
 p25 = data[k]
 
 # compute total discharge in ampere hours, Ah
-totDisAh = p25.s1.disAh[-1] + p25.s2.disAh[-1] + p25.s3.disAh[-1] + p25.s4.disAh[-1]
+totDisAh = p25.s1.disAh[-1] + p25.s2.disAh[-1] + \
+    p25.s3.disAh[-1] + p25.s4.disAh[-1]
 
 # compute total charge in ampere hours, Ah
-totChgAh = p25.s1.chgAh[-1] + p25.s2.chgAh[-1] + p25.s3.chgAh[-1] + p25.s4.chgAh[-1]
+totChgAh = p25.s1.chgAh[-1] + p25.s2.chgAh[-1] + \
+    p25.s3.chgAh[-1] + p25.s4.chgAh[-1]
 
 # the 25 degC coulombic efficiency
 eta25 = totDisAh/totChgAh
@@ -73,14 +76,20 @@ Q25 = p25.s1.disAh[-1] + p25.s2.disAh[-1] - p25.s1.chgAh[-1] - p25.s2.chgAh[-1]
 Q[k] = Q25
 
 # discharge
-indD = np.where(p25.s1.step == 2)[0]                            # slow discharge step
-IR1Da = p25.s1.voltage[indD[0]-1] - p25.s1.voltage[indD[0]]     # the i*R voltage drop at beginning of discharge
-IR2Da = p25.s1.voltage[indD[-1]+1] - p25.s1.voltage[indD[-1]]   # the i*R voltage drop at end of discharge
+# slow discharge step
+indD = np.where(p25.s1.step == 2)[0]
+# the i*R voltage drop at beginning of discharge
+IR1Da = p25.s1.voltage[indD[0]-1] - p25.s1.voltage[indD[0]]
+# the i*R voltage drop at end of discharge
+IR2Da = p25.s1.voltage[indD[-1]+1] - p25.s1.voltage[indD[-1]]
 
 # charge
-indC = np.where(p25.s3.step == 2)[0]                            # slow charge step
-IR1Ca = p25.s3.voltage[indC[0]] - p25.s3.voltage[indC[0]-1]     # the i*R voltage rise at beginning of charge
-IR2Ca = p25.s3.voltage[indC[-1]] - p25.s3.voltage[indC[-1]+1]   # the i*R voltage rise at end of charge
+# slow charge step
+indC = np.where(p25.s3.step == 2)[0]
+# the i*R voltage rise at beginning of charge
+IR1Ca = p25.s3.voltage[indC[0]] - p25.s3.voltage[indC[0]-1]
+# the i*R voltage rise at end of charge
+IR2Ca = p25.s3.voltage[indC[-1]] - p25.s3.voltage[indC[-1]+1]
 
 # put bounds on R
 IR1D = min(IR1Da, 2*IR2Ca)
@@ -89,16 +98,20 @@ IR1C = min(IR1Ca, 2*IR2Da)
 IR2C = min(IR2Ca, 2*IR1Da)
 
 # discharge
-blendD = np.linspace(0, 1, len(indD))   # linear blending from 0 to 1 for discharge
+# linear blending from 0 to 1 for discharge
+blendD = np.linspace(0, 1, len(indD))
 IRblendD = IR1D + (IR2D - IR1D)*blendD  # blend resistances for discharge
-disV = p25.s1.voltage[indD] + IRblendD  # approximate discharge voltage at each point
+# approximate discharge voltage at each point
+disV = p25.s1.voltage[indD] + IRblendD
 disZ = 1 - p25.s1.disAh[indD]/Q25       # approximate SOC at each point
 disZ = disZ + (1 - disZ[0])
 
 # charge
-blendC = np.linspace(0, 1, len(indC))   # linear blending from 0 to 1 for charge
+# linear blending from 0 to 1 for charge
+blendC = np.linspace(0, 1, len(indC))
 IRblendC = IR1C + (IR2C - IR1C)*blendC  # blend resistances for charge
-chgV = p25.s3.voltage[indC] - IRblendC  # approximate charge voltage at each point
+# approximate charge voltage at each point
+chgV = p25.s3.voltage[indC] - IRblendC
 chgZ = p25.s3.chgAh[indC]/Q25           # approximate SOC at each point
 chgZ = chgZ - chgZ[0]
 
@@ -114,10 +127,12 @@ vDis = disV[ind] + (1 - disZ[ind])*deltaV50
 zDis = disZ[ind]
 
 # rawocv now has our best guess of true ocv at this temperature
-rawocv = np.interp(SOC, np.concatenate([zChg, zDis[::-1]]), np.concatenate([vChg, vDis[::-1]]))
+rawocv = np.interp(SOC, np.concatenate(
+    [zChg, zDis[::-1]]), np.concatenate([vChg, vDis[::-1]]))
 
 # store calculated data into filedata object
-filedata[k] = FileData(p25.s1.voltage[indD], disZ, p25.s3.voltage[indC], chgZ, rawocv, temps[k])
+filedata[k] = FileData(p25.s1.voltage[indD], disZ,
+                       p25.s3.voltage[indC], chgZ, rawocv, temps[k])
 
 # Process Other Temperatures to Find Raw OCV Relationship and Eta
 # Everything that follows is same as at 25 degC, except we need to compensate
@@ -141,17 +156,24 @@ for k in not25:
     data[k].s3.chgAh = data[k].s3.chgAh * eta[k]
 
     # compute cell capacity
-    Q[k] = data[k].s1.disAh[-1] + data[k].s2.disAh[-1] - data[k].s1.chgAh[-1] - data[k].s2.chgAh[-1]
+    Q[k] = data[k].s1.disAh[-1] + data[k].s2.disAh[-1] - \
+        data[k].s1.chgAh[-1] - data[k].s2.chgAh[-1]
 
     # discharge
-    indD = np.where(data[k].s1.step == 2)[0]                                # slow discharge step
-    IR1D = data[k].s1.voltage[indD[0]-1] - data[k].s1.voltage[indD[0]]      # the i*R voltage drop at beginning of discharge
-    IR2D = data[k].s1.voltage[indD[-1]+1] - data[k].s1.voltage[indD[-1]]    # the i*R voltage drop at end of discharge
+    # slow discharge step
+    indD = np.where(data[k].s1.step == 2)[0]
+    # the i*R voltage drop at beginning of discharge
+    IR1D = data[k].s1.voltage[indD[0]-1] - data[k].s1.voltage[indD[0]]
+    # the i*R voltage drop at end of discharge
+    IR2D = data[k].s1.voltage[indD[-1]+1] - data[k].s1.voltage[indD[-1]]
 
     # charge
-    indC = np.where(data[k].s3.step == 2)[0]                             # slow charge step
-    IR1C = data[k].s3.voltage[indC[0]] - data[k].s3.voltage[indC[0]-1]   # the i*R voltage rise at beginning of charge
-    IR2C = data[k].s3.voltage[indC[-1]] - data[k].s3.voltage[indC[-1]+1] # the i*R voltage rise at end of charge
+    # slow charge step
+    indC = np.where(data[k].s3.step == 2)[0]
+    # the i*R voltage rise at beginning of charge
+    IR1C = data[k].s3.voltage[indC[0]] - data[k].s3.voltage[indC[0]-1]
+    # the i*R voltage rise at end of charge
+    IR2C = data[k].s3.voltage[indC[-1]] - data[k].s3.voltage[indC[-1]+1]
 
     # put bounds on R
     IR1D = min(IR1D, 2*IR2C)
@@ -160,23 +182,29 @@ for k in not25:
     IR2C = min(IR2C, 2*IR1D)
 
     # discharge
-    blend = np.linspace(0, 1, len(indD))        # linear blending from 0 to 1 for discharge
-    IRblend = IR1D + (IR2D - IR1D)*blend        # blend resistances for discharge
-    disV = data[k].s1.voltage[indD] + IRblend   # approximate discharge voltage at each point
+    # linear blending from 0 to 1 for discharge
+    blend = np.linspace(0, 1, len(indD))
+    # blend resistances for discharge
+    IRblend = IR1D + (IR2D - IR1D)*blend
+    # approximate discharge voltage at each point
+    disV = data[k].s1.voltage[indD] + IRblend
     disZ = 1 - data[k].s1.disAh[indD]/Q25       # approximate SOC at each point
     disZ = disZ + (1 - disZ[0])
 
     # charge
-    blend = np.linspace(0, 1, len(indC))        # linear blending from 0 to 1 for charge
+    # linear blending from 0 to 1 for charge
+    blend = np.linspace(0, 1, len(indC))
     IRblend = IR1C + (IR2C - IR1C)*blend        # blend resistances for charge
-    chgV = data[k].s3.voltage[indC] - IRblend   # approximate charge voltage at each point
+    # approximate charge voltage at each point
+    chgV = data[k].s3.voltage[indC] - IRblend
     chgZ = data[k].s3.chgAh[indC]/Q25           # approximate SOC at each point
     chgZ = chgZ - chgZ[0]
 
     # compute voltage difference between charge and discharge at 50% SOC force i*R
     # compensated curve to pass half-way between each charge and discharge at this
     # point notice that vector chgZ and disZ must be increasing
-    deltaV50 = np.interp(0.5, chgZ, chgV) - np.interp(0.5, disZ[::-1], disV[::-1])
+    deltaV50 = np.interp(0.5, chgZ, chgV) - \
+        np.interp(0.5, disZ[::-1], disV[::-1])
     ind = np.where(chgZ < 0.5)[0]
     vChg = chgV[ind] - chgZ[ind]*deltaV50
     zChg = chgZ[ind]
@@ -185,10 +213,12 @@ for k in not25:
     zDis = disZ[ind]
 
     # rawocv now has our best guess of true ocv at this temperature
-    rawocv = np.interp(SOC, np.concatenate([zChg, zDis[::-1]]), np.concatenate([vChg, vDis[::-1]]))
+    rawocv = np.interp(SOC, np.concatenate(
+        [zChg, zDis[::-1]]), np.concatenate([vChg, vDis[::-1]]))
 
     # store calculated data into filedata object
-    filedata[k] = FileData(data[k].s1.voltage[indD], disZ, data[k].s3.voltage[indC], chgZ, rawocv, temps[k])
+    filedata[k] = FileData(data[k].s1.voltage[indD], disZ,
+                           data[k].s3.voltage[indC], chgZ, rawocv, temps[k])
 
 # Use the SOC versus OCV data now available at each individual
 # temperature to compute an OCV0 and OCVrel relationship
@@ -198,7 +228,8 @@ for k in not25:
 postemps = temps[temps > 0]     # temps > 0
 numtempskept = len(postemps)    # number of temps > 0
 
-nocv = len(filedata[5].rawocv)          # number of rawocv values based on 25 degC results
+# number of rawocv values based on 25 degC results
+nocv = len(filedata[5].rawocv)
 Vraw = np.zeros([numtempskept, nocv])   # initialize rawocv array
 idxpos = np.where(temps > 0)[0]         # indices of positive file temperatures
 
@@ -238,7 +269,8 @@ H = np.ones([len(temps), 2])
 H[:, 1] = temps
 
 for k in range(len(v)):
-    X = np.linalg.lstsq(H, socs[:, k], rcond=None)  # fit SOC(v,T) = 1*SOC0(v) + T*SOCrel(v)
+    # fit SOC(v,T) = 1*SOC0(v) + T*SOCrel(v)
+    X = np.linalg.lstsq(H, socs[:, k], rcond=None)
     SOC0[k] = X[0][0]
     SOCrel[k] = X[0][1]
 
@@ -257,7 +289,8 @@ for k, _ in enumerate(temps):
     rmserr = np.sqrt(np.mean(err**2))
 
     plt.figure(k+1)
-    plt.plot(100*SOC, OCVfromSOCtemp(SOC, filedata[k].temp, modelocv), 'k', label='model')
+    plt.plot(100*SOC, OCVfromSOCtemp(SOC,
+             filedata[k].temp, modelocv), 'k', label='model')
     plt.plot(100*SOC, filedata[k].rawocv, 'r', label='approx')
     plt.plot(100*filedata[k].disZ, filedata[k].disV, 'g--', label='dis')
     plt.plot(100*filedata[k].chgZ, filedata[k].chgV, 'b--', label='chg')
@@ -268,12 +301,13 @@ for k, _ in enumerate(temps):
     plt.ylabel('OCV (V)')
     plt.legend(numpoints=1, loc='lower right')
     plt.grid()
+    plt.show()
 
 
 # convert model object to dict, then save in JSON to disk
 # ------------------------------------------------------------------------------
 if True:
-    modelocv = {k:v.tolist() for k,v in modelocv.__dict__.items() if isinstance(v, np.ndarray)}
+    modelocv = {k: v.tolist() for k, v in modelocv.__dict__.items()
+                if isinstance(v, np.ndarray)}
     with open('modelocv.json', 'w') as json_file:
         json.dump(modelocv, json_file, indent=4)
-

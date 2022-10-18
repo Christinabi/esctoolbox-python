@@ -3,7 +3,7 @@ Plot voltages recorded for the three scripts related to the A123 cell. Data is
 read from csv files located in the dyn_data/ folder. The csv files were created
 from the mat files located in the Matlab ESCtoolbox at DYN/A123_DYN.
 """
-
+#%%
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -64,6 +64,7 @@ current3 = df3['current'].values
 time3 = df3['time'].values
 t3 = (time3 - time3[0])/3600
 
+#%%
 # plot voltage from each script
 
 fig = plt.figure()
@@ -84,6 +85,7 @@ fig.text(0.5, 0.01, 'Time (hr)', ha='center')
 fig.text(0.01, 0.5, 'Voltage (V)', va='center', rotation='vertical')
 plt.tight_layout()
 
+#%%
 # plot current from each script
 
 fig = plt.figure()
@@ -104,3 +106,5 @@ fig.text(0.5, 0.01, 'Time (hr)', ha='center')
 fig.text(0.01, 0.5, 'Current (A)', va='center', rotation='vertical')
 plt.tight_layout()
 
+
+# %%
